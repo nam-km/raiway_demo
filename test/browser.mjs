@@ -15,13 +15,22 @@ try {
   await page.goto(`http://localhost:${port}/`);
   await page.waitForFunction(() => !document.getElementById('loading'), { timeout: 60000 });
   await new Promise((r) => setTimeout(r, 1500));
-  await page.keyboard.down('w');
-  await new Promise((r) => setTimeout(r, Number(process.argv[2] ?? 6000)));
-  await page.keyboard.up('w');
-  const hud = await page.evaluate(() => ({
-    cmd: document.getElementById('hud-cmd').textContent, act: document.getElementById('hud-act').textContent,
-    banner: document.getElementById('banner').hidden ? null : document.getElementById('banner').textContent }));
-  console.log(JSON.stringify(hud));
+  const drive = async () => {
+    await page.keyboard.down('w');
+    await new Promise((r) => setTimeout(r, Number(process.argv[2] ?? 6000)));
+    await page.keyboard.up('w');
+    console.log(JSON.stringify(await page.evaluate(() => ({
+      policy: document.getElementById('checkpoint').textContent,
+      cmd: document.getElementById('hud-cmd').textContent, act: document.getElementById('hud-act').textContent,
+      banner: document.getElementById('banner').hidden ? null : document.getElementById('banner').textContent }))));
+  };
+  await drive();
+  const others = await page.evaluate(() => [...document.getElementById('policy').options].filter((o) => !o.selected).map((o) => o.value));
+  for (const name of others) {
+    await page.select('#policy', name);
+    await new Promise((r) => setTimeout(r, 1500));
+    await drive();
+  }
   await page.screenshot({ path: process.argv[3] ?? 'test/screenshot.png' });
   console.log('errors:', errors.slice(0, 10));
 } finally {

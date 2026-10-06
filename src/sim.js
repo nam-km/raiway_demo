@@ -18,11 +18,10 @@ export function sceneXml(terrain, dt) {
 
 export class RaiwaySim {
   constructor(mj, vfs, cfg, session, ort, terrain) {
-    Object.assign(this, { mj, cfg, session, ort });
+    Object.assign(this, { mj, ort });
     this.model = mj.MjModel.from_xml_string(sceneXml(terrain, cfg.simulation_dt), vfs);
     this.data = new mj.MjData(this.model);
     const m = this.model;
-    this.substeps = Math.round(cfg.control_dt / cfg.simulation_dt);
     this.baseId = m.body('Segway_TORSO').id;
     this.wheelIds = [m.body('Segway_L_WHEEL').id, m.body('Segway_R_WHEEL').id];
     this.terrainGeom = m.geom('terrain').id;
@@ -31,6 +30,14 @@ export class RaiwaySim {
     for (let g = 0; g < m.ngeom; g++) {
       if (!allowed.has(m.geom_bodyid[g]) && g !== this.terrainGeom) this.forbidden.add(g);
     }
+    this.command = [0, 0, 0];
+    this.setPolicy(cfg, session);
+    this.setTerrain(terrain);
+  }
+
+  setPolicy(cfg, session) {
+    Object.assign(this, { cfg, session });
+    this.substeps = Math.round(cfg.control_dt / cfg.simulation_dt);
     const h = cfg.est_history;
     this.histDepth = 1 + (h.len - 1) * h.stride;
     if (cfg.scan_type === 3) {
@@ -38,8 +45,6 @@ export class RaiwaySim {
       cfg.scan_rings.points.forEach((n, k) => { for (let j = 0; j < n; j++) this.ringOffsets.push([k, j, n]); });
     }
     this.scanPoints = new Float32Array(2 * cfg.scan_n * 3);
-    this.command = [0, 0, 0];
-    this.setTerrain(terrain);
   }
 
   setTerrain(terrain) {

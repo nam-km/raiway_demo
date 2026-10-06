@@ -1,0 +1,13 @@
+{
+  "default": "2026-10-01-08-06-33-5444-MLP_est",
+  "policies": [
+    {
+      "name": "2026-09-25-10-42-26-5444-MLP_est",
+      "label": "#14 \u00b7 11-point scan"
+    },
+    {
+      "name": "2026-10-01-08-06-33-5444-MLP_est",
+      "label": "#18 \u00b7 16-point scan, edge margin"
+    }
+  ]
+}

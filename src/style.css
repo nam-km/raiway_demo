@@ -54,7 +54,7 @@ h1 { margin: 0; font-size: 18px; }
 code { font-size: 11px; }
 
 .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
-.row select { flex: 1; padding: 4px; font: inherit; }
+.row select { flex: 1; min-width: 0; padding: 4px; font: inherit; }
 .checks label { display: flex; align-items: center; gap: 4px; }
 
 .slider { display: block; margin: 8px 0; font-size: 13px; }

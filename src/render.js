@@ -102,6 +102,11 @@ export class Viewer {
   }
 
   buildScan() {
+    if (this.scan) {
+      this.scene.remove(this.scan);
+      this.scan.geometry.dispose();
+      this.scan.material.dispose();
+    }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(this.sim.scanPoints, 3));
     this.scan = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xff7a00, size: 0.045, depthTest: false }));

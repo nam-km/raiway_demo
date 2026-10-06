@@ -5,16 +5,17 @@ import * as ort from 'onnxruntime-web';
 import { TERRAINS } from '../src/terrain.js';
 import { RaiwaySim } from '../src/sim.js';
 
-const [terrainName = 'flat', vx = '1.0', wz = '0.0', seconds = '8', level = '1.0'] = process.argv.slice(2);
+const [terrainName = 'flat', vx = '1.0', wz = '0.0', seconds = '8', level = '1.0', policyName] = process.argv.slice(2);
 const assets = path.resolve(import.meta.dirname, '../public/model');
 const mj = await loadMujoco();
 const vfs = new mj.MjVFS();
 vfs.addBuffer('raiway.xml', new Uint8Array(fs.readFileSync(path.join(assets, 'raiway.xml'))));
 for (const f of fs.readdirSync(path.join(assets, 'meshes')))
   vfs.addBuffer('meshes/' + f, new Uint8Array(fs.readFileSync(path.join(assets, 'meshes', f))));
-const cfg = JSON.parse(fs.readFileSync(path.join(assets, 'config.json')));
+const policy = path.join(assets, 'policies', policyName ?? JSON.parse(fs.readFileSync(path.join(assets, 'policies.json'))).default);
+const cfg = JSON.parse(fs.readFileSync(path.join(policy, 'config.json')));
 ort.env.wasm.numThreads = 1;
-const session = await ort.InferenceSession.create(fs.readFileSync(path.join(assets, 'policy.onnx')));
+const session = await ort.InferenceSession.create(fs.readFileSync(path.join(policy, 'policy.onnx')));
 const sim = new RaiwaySim(mj, vfs, cfg, session, ort, TERRAINS[terrainName](Number(level)));
 sim.reset();
 const t0 = performance.now();

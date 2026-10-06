@@ -26,16 +26,26 @@ async function main() {
   const mj = await loadMujoco();
   status('Loading robot and policy…');
   ort.env.wasm.numThreads = 1;
-  const [cfg, xml, onnx, ...meshes] = await Promise.all([
-    fetch(ASSETS + 'config.json').then((r) => r.json()),
+  const [manifest, xml, ...meshes] = await Promise.all([
+    fetch(ASSETS + 'policies.json').then((r) => r.json()),
     fetchBytes(ASSETS + 'raiway.xml'),
-    fetchBytes(ASSETS + 'policy.onnx'),
     ...MESHES.map((n) => fetchBytes(`${ASSETS}meshes/${n}.STL`)),
   ]);
+  const policies = new Map();
+  const loadPolicy = (name) => {
+    if (!policies.has(name)) {
+      const dir = `${ASSETS}policies/${name}/`;
+      policies.set(name, Promise.all([fetch(dir + 'config.json').then((r) => r.json()), fetchBytes(dir + 'policy.onnx')])
+        .then(async ([cfg, onnx]) => ({ name, cfg, session: await ort.InferenceSession.create(onnx, { executionProviders: ['wasm'] }) }))
+        .catch((e) => { policies.delete(name); throw e; }));
+    }
+    return policies.get(name);
+  };
+  for (const p of manifest.policies) $('policy').add(new Option(p.label, p.name, false, p.name === manifest.default));
+  let { cfg, session } = await loadPolicy(manifest.default);
   const vfs = new mj.MjVFS();
   vfs.addBuffer('raiway.xml', xml);
   MESHES.forEach((n, i) => vfs.addBuffer(`meshes/${n}.STL`, meshes[i]));
-  const session = await ort.InferenceSession.create(onnx, { executionProviders: ['wasm'] });
 
   const terrains = {};
   const level = () => Number($('level').value);
@@ -49,7 +59,7 @@ async function main() {
 
   const joystick = new Joystick($('joystick'));
   const keys = new Set();
-  const state = { cmd: [0, 0], fallTimer: null, paused: false, speed: 1 };
+  const state = { cmd: [0, 0], fallTimer: null, paused: false, speed: 1, policy: null, active: manifest.default };
 
   const showLevel = () => {
     const name = $('terrain').value;
@@ -71,6 +81,16 @@ async function main() {
     $('banner').hidden = true;
   };
 
+  $('policy').addEventListener('change', async (e) => {
+    const name = e.target.value;
+    try {
+      const next = await loadPolicy(name);
+      if ($('policy').value === name) state.policy = next;
+    } catch (err) {
+      console.error(err);
+      if ($('policy').value === name) $('policy').value = state.active;
+    }
+  });
   $('terrain').addEventListener('change', setTerrain);
   $('level').addEventListener('input', showLevel);
   $('level').addEventListener('change', setTerrain);
@@ -119,6 +139,16 @@ async function main() {
     last = now;
     if (busy) return;
     busy = true;
+    if (state.policy) {
+      ({ cfg, session } = state.policy);
+      state.active = state.policy.name;
+      state.policy = null;
+      sim.setPolicy(cfg, session);
+      viewer.buildScan();
+      viewer.scan.visible = $('scan').checked;
+      $('checkpoint').textContent = cfg.checkpoint;
+      reset();
+    }
     if (!state.paused) acc += dt * state.speed;
     const ctrl = cfg.control_dt;
     let n = 0;
